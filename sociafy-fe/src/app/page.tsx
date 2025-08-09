@@ -1,5 +1,5 @@
 'use client';
 
 export default function Page() {
-  return <div className="w-full">sociafy</div>;
+  return <div className="bg-color-background">sociafy</div>;
 }
