@@ -1,0 +1,59 @@
+@import "tailwindcss";
+
+@theme inline {
+  /* Colors */
+  --color-background: #ffffff;
+  --color-foreground: #171717;
+  --color-blue-dark: #2374E1;
+  --color-blue-medium: #1877F2;
+  --color-blue-light: #E7F3FF;
+
+  --color-grey-dark: #73767B;
+  --color-grey-medium: #D9D9D9;
+  --color-grey-light: #EDECF1;
+  --color-grey-lighter: #F0F2F5;
+  --color-grey-background: #E4E6EB;
+  --color-grey-stroke: #CED0D4;
+
+  --color-black-icon: #050505;
+  --color-black-dark: #000000;
+  --color-black-light: #3C4147;
+
+  --color-red-base: #FF0000;
+
+  /* Typography */
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+  --text-3xs: 0.75rem /*12px*/
+  --text-2xs: 0.875rem; /*14px*/
+  --text-xs: 0.9375rem;/*15px*/
+  --text-base: 1rem;/*16px*/
+  --text-lg: 1.0625rem;/*17px*/
+  --text-xl: 1.125rem;/*18px*/
+  --text-2xl: 1.25rem; /*20px*/
+
+
+  --font-weight-regular: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+  --font-weight-extrabold: 800;
+
+  /* Breakpoints */
+  --screen-mobile: 375px;
+  --screen-tablet: 768px;
+  --screen-desktop: 1440px;
+}
+
+@media (prefers-color-scheme: dark) {
+  @theme inline {
+    --color-background: #181820;
+    --color-foreground: #ededed;
+  }
+}
+
+body {
+  background: var(--color-background);
+  color: var(--color-foreground);
+  font-family: var(--font-sans), Arial, Helvetica, sans-serif;
+}
