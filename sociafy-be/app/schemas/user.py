@@ -6,11 +6,12 @@ class UserBase(BaseModel):
     email: EmailStr
     firstName: str
     lastName: str
-    avatar_url: str
+    avatar_url: Optional[str] = "text avatar"
     is_banned: bool
     birthOfDate: date
     isInfluencer: bool
     role_id: str
+    is_verified: bool
 
 class UserCreate(BaseModel):
     email: EmailStr
@@ -23,10 +24,12 @@ class UserLogin(BaseModel):
     email: EmailStr
     password: str
 
+
 class UserResponse(UserBase):
     id: str
 
 class RegisterResponse(BaseModel):
     message: str
-    user: UserResponse
-    
+class VerifyOTPRequest(BaseModel):
+    email: EmailStr
+    otp_code: str
