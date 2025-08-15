@@ -19,5 +19,6 @@ def send_otp(to_email: str, otp: str):
         server.starttls()
         server.login(SMTP_EMAIL, SMTP_PASSWORD)
         server.sendmail(SMTP_EMAIL, to_email, message.as_string())
+        
 
     
