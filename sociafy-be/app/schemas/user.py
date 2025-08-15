@@ -29,3 +29,4 @@ class UserResponse(UserBase):
 class RegisterResponse(BaseModel):
     message: str
     user: UserResponse
+    
