@@ -1,8 +1,24 @@
+import os
+from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware 
 from app.api.v1 import routers
+from starlette.middleware.sessions import SessionMiddleware
+
+load_dotenv()
 
 app = FastAPI(title="Sociafy API")
+
+secret_key = os.getenv("SECRET_KEY")
+if not secret_key:
+    raise ValueError("SECRET_KEY not set in .env")
+
+app.add_middleware(
+    SessionMiddleware,
+    secret_key= secret_key,
+    session_cookie="session",          
+    max_age=3600                      
+)
 
 app.add_middleware(
     CORSMiddleware,
