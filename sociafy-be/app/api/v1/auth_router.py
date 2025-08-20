@@ -161,4 +161,14 @@ def get_current_user(request: Request):
     user = request.session.get("user")
     if not user:
         raise HTTPException(status_code=401, detail="Not authenticated")
-    return {"user": user}
+    
+    userId = user["id"]
+
+    # get all posts of current user ( even private)
+    posts = supabase.table("post").select("*").eq("user_id", userId).execute()
+    posts_with_media = []
+    for post in posts.data:
+        medias = supabase.table("media").select("*").eq("post_id", post["id"]).execute()
+        post["media"] = medias.data
+        posts_with_media.append(post)
+    return {"user": user, "posts": posts_with_media}
