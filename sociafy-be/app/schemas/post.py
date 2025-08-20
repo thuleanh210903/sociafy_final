@@ -12,6 +12,6 @@ class PostCreate(BaseModel):
     content: str
     privacy: PrivacyEnum = PrivacyEnum.public
 
-class PostCreateResponse(BaseModel):
+class PostMessageResponse(BaseModel):
     message: str
     
