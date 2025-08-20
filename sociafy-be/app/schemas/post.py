@@ -15,3 +15,4 @@ class PostCreate(BaseModel):
 class PostMessageResponse(BaseModel):
     message: str
     
+    
