@@ -2,3 +2,6 @@ fastapi
 uvicorn
 supabase
 python-dotenv
+itsdangerous
+cloudinary-1.44.1
+python-multipart
