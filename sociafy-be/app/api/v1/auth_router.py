@@ -1,12 +1,13 @@
 # app/api/v1/auth_router.py
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request, Response, Depends
 from app.db.supabase_client import supabase
 from app.core.security import hash_password, verify_password
 from app.core.email_utils import send_otp
-from app.schemas.user import UserCreate, UserResponse, RegisterResponse, VerifyOTPRequest
+from app.schemas.user import UserCreate, UserResponse, RegisterResponse, VerifyOTPRequest, UserLogin
 from datetime import datetime, date, timedelta
 import uuid
 import random
+
 
 router = APIRouter()
 
@@ -71,7 +72,7 @@ def verify_otp(data: VerifyOTPRequest):
     if not user_record.data:
         raise HTTPException(status_code=400, detail="No OTP found for this email")
 
-    user = user_record.data[0]
+    user = user_record.dthêata[0]
 
     if user["is_verified"]:
         return {"message": "Email already verified"}
@@ -118,3 +119,46 @@ def resend_otp(email: str):
 
     send_otp(email, otp)
     return {"message": f"OTP sent successfully. Attempt {send_count}"}
+
+
+#Login
+@router.post('/login')
+def login(request: Request, body: UserLogin):
+    user_record = supabase.table("user").select("*").eq("email", body.email).execute()
+
+    if not user_record.data:
+        raise HTTPException(status_code=401, detail="Invalid email or password")
+    
+    user = user_record.data[0]
+
+    if not verify_password(body.password, user["password"]):
+        raise HTTPException(status_code=401, detail="Invalid email or password")
+    
+    if not user.get("is_verified", False):
+        raise HTTPException(status_code=403, detail="Account is banned")
+    
+    request.session["user"] = {
+        "id": user["id"],
+        "email": user["email"],
+        "firstName": user["firstName"],
+        "lastName": user["lastName"],
+        "avatar_url": user["avatar_url"],
+        "birthOfDate": user["birthOfDate"],
+        "isInfluencer": user["isInfluencer"],
+        "role_id": user["role_id"],
+    }
+    return {"message": "Login successful", "user": {"email": user["email"], "firstName": user["firstName"],"lastName": user["lastName"],"avatar_url": user["avatar_url"],"birthOfDate": user["birthOfDate"], "role_id": user["role_id"]}}
+
+#logout
+@router.post("/logout")
+def logout(request: Request):
+    request.session.clear()
+    return {"message": "Logout successful"}
+
+# info
+@router.get("/me")
+def get_current_user(request: Request):
+    user = request.session.get("user")
+    if not user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    return {"user": user}
