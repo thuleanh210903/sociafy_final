@@ -14,3 +14,4 @@ class PostCreate(BaseModel):
 
 class PostCreateResponse(BaseModel):
     message: str
+    
