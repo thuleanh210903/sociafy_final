@@ -72,7 +72,7 @@ def verify_otp(data: VerifyOTPRequest):
     if not user_record.data:
         raise HTTPException(status_code=400, detail="No OTP found for this email")
 
-    user = user_record.dthêata[0]
+    user = user_record.data[0]
 
     if user["is_verified"]:
         return {"message": "Email already verified"}
