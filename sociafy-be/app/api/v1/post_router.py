@@ -8,7 +8,21 @@ from app.services.cloudinary_service import upload_cloudinary_image
 from app.share.enum.privacy import PrivacyEnum
 router = APIRouter()
 
-@router.get('/get-post')
+@router.get('/get-post-me')
+def getPostOfMe(request: Request):
+    # get user id
+    user = request.session.get('user')
+    if not user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    userId = user["id"]
+    # get  all post of current user
+    posts = supabase.table("post").select("*").eq("user_id", userId).execute()
+
+    if not posts.data:
+        return {"message": "No posts found", "posts": []}
+    
+    return {"message": "Get posts successful", "posts": posts.data}
+
 
 @router.post('/add-post', response_model=PostMessageResponse)
 async def addPost(
