@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import List, Optional
 import uuid
-from fastapi import APIRouter, File, Form, Request, HTTPException, UploadFile
+from fastapi import APIRouter, File, Form, Query, Request, HTTPException, UploadFile
 from app.db.supabase_client import supabase
 from app.schemas.post import PostMessageResponse
 from app.services.cloudinary_service import upload_cloudinary_image, delete_cloudinary_asset
@@ -22,6 +22,66 @@ def getPostOfMe(request: Request):
         return {"message": "No posts found", "posts": []}
     
     return {"message": "Get posts successful", "posts": posts.data}
+
+@router.get("/feed")
+def get_feed(
+    request: Request,
+    limit: int = Query(2, ge=1, le=10),
+    cursor: str | None = None  
+):
+    user = request.session.get("user")
+    if not user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    user_id = user["id"]
+
+    friends_res = (
+        supabase.table("friend")
+        .select("*")
+        .or_(f"user_id.eq.{user_id},friend_id.eq.{user_id}")
+        .eq("status", True)
+        .execute()
+    )
+
+    friend_ids = {f["friend_id"] if f["user_id"] == user_id else f["user_id"] for f in friends_res.data}
+    all_ids = list(friend_ids) + [user_id]
+
+    # base query
+    query = (
+        supabase.table("post")
+        .select("*")
+        .in_("user_id", all_ids)
+        .eq("privacy", "public")
+        .order("created_at", desc=True)
+        .order("id", desc=True)
+    )
+
+    if cursor:
+        cursor = cursor.strip()
+        last_post_res = (
+            supabase.table("post")
+            .select("created_at")
+            .eq("id", cursor)
+            .execute()
+        )
+        if not last_post_res.data:
+            raise HTTPException(status_code=400, detail="Invalid cursor id")
+        cursor_dt = last_post_res.data[0]["created_at"]
+
+        query = query.or_(
+        f"created_at.lt.{cursor_dt},and(created_at.eq.{cursor_dt},id.lt.{cursor})"
+    )
+
+    posts_res = query.limit(limit).execute()
+    posts = posts_res.data or []
+
+    next_cursor = posts[-1]["id"] if posts else None
+
+    return {
+        "data": posts,
+        "next_cursor": next_cursor,
+        "has_more": len(posts) == limit
+    }
+
 
 
 @router.post('/add-post', response_model=PostMessageResponse)
