@@ -1,17 +1,22 @@
 from datetime import datetime
+from typing import List
 import uuid
-from fastapi import APIRouter, Request, HTTPException
+from fastapi import APIRouter, File, Form, Request, HTTPException, UploadFile
 from app.db.supabase_client import supabase
 from app.schemas.post import PostMessageResponse, PostCreate
-
-
-
+from app.services.cloudinary_service import upload_cloudinary_image
+from app.share.enum.privacy import PrivacyEnum
 router = APIRouter()
 
 @router.get('/get-post')
 
 @router.post('/add-post', response_model=PostMessageResponse)
-def addPost(post: PostCreate, request: Request):
+async def addPost(
+    request: Request,
+    content: str = Form(...),
+    privacy: PrivacyEnum = Form(PrivacyEnum.public),
+    files: List[UploadFile] = File(None)
+):
     # get user id
     user = request.session.get('user')
     if not user:
@@ -19,20 +24,37 @@ def addPost(post: PostCreate, request: Request):
     userId = user["id"]
 
     # prepare post data
-    new_post = post.dict()
-    new_post["id"] = str(uuid.uuid4())
-    new_post["user_id"] = userId
-    new_post["created_at"] = datetime.utcnow().isoformat()
-
-
+    new_post = {
+        "id": str(uuid.uuid4()),
+        "content": content,
+        "user_id": userId,
+        "privacy": privacy.value,
+        "is_hided": False,
+        "created_at": datetime.utcnow().isoformat()
+    }
 
     # insert supabase
     result = supabase.table("post").insert(new_post).execute()
     if not result.data:
         raise HTTPException(status_code=500, detail="Failed to insert post")
+    
+    post_id = new_post["id"]
+
+    media_records = []
+    if files:
+        for f in files:
+            uploaded = upload_cloudinary_image(file=f, key='post', user_id=userId, post_id=post_id)
+            media = {
+                "id": str(uuid.uuid4()),
+                "post_id": post_id,
+                "media_url": uploaded["url"],
+                "media_type": uploaded["resource_type"],
+            }
+            supabase.table("media").insert(media).execute()
+            media_records.append(media)
 
     # return message
-    return {"message": "Post added successful", "post": result.data[0]}
+    return {"message": "Post added successful", "post": result.data[0], "media": media_records}
 
 
 @router.delete('/delete-post/{post_id}', response_model=PostMessageResponse)
