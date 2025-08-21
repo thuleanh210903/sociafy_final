@@ -5,10 +5,12 @@ from .role_router import router as role_router
 from .auth_router import router as auth_router
 from .post_router import router as post_router
 from .upload_router import router as upload_router
+from .user_router import router as user_router
 
 routers = [
     (role_router, '/role', "Role"),
     (auth_router, '/auth', "Auth"),
     (post_router, '/post', "Post"),
-    (upload_router, '/upload', "Image")
+    (upload_router, '/upload', "Image"),
+    (user_router, '/user', "User")
 ]
