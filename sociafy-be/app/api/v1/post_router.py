@@ -1,10 +1,10 @@
 from datetime import datetime
-from typing import List
+from typing import List, Optional
 import uuid
 from fastapi import APIRouter, File, Form, Request, HTTPException, UploadFile
 from app.db.supabase_client import supabase
-from app.schemas.post import PostMessageResponse, PostCreate
-from app.services.cloudinary_service import upload_cloudinary_image
+from app.schemas.post import PostMessageResponse
+from app.services.cloudinary_service import upload_cloudinary_image, delete_cloudinary_asset
 from app.share.enum.privacy import PrivacyEnum
 router = APIRouter()
 
@@ -69,6 +69,101 @@ async def addPost(
 
     # return message
     return {"message": "Post added successful", "post": result.data[0], "media": media_records}
+
+@router.put("/edit-post/{post_id}", response_model=PostMessageResponse)
+async def editPost(
+    post_id: str,
+    request: Request,
+    content: Optional[str] = Form(None),
+    privacy: Optional[PrivacyEnum] = Form(None),
+    files: List[UploadFile] = File(None),
+    media_ids_to_delete: Optional[List[str]] = Form(None)
+):
+    # check login
+    user = request.session.get("user")
+    if not user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    userId = user["id"]
+
+    # find post
+    post_record = supabase.table("post").select("*").eq("id", post_id).execute()
+    if not post_record.data:
+        raise HTTPException(status_code=404, detail="Post not found")
+
+    post = post_record.data[0]
+    if post["user_id"] != userId:
+        raise HTTPException(status_code=403, detail="You are not allowed to edit this post")
+
+    # update post fields if provided
+    update_data = {}
+    if content is not None:
+        update_data["content"] = content
+    if privacy is not None:
+        update_data["privacy"] = privacy.value
+
+    if update_data:
+        supabase.table("post").update(update_data).eq("id", post_id).execute()
+
+    # delete selected media
+    if media_ids_to_delete:
+        for media_id in media_ids_to_delete:
+            supabase.table("media").delete().eq("id", media_id).execute()
+
+    # add new media
+    media_records = []
+    if files:
+        for f in files:
+            uploaded = upload_cloudinary_image(file=f, key='post', user_id=userId, post_id=post_id)
+            media = {
+                "id": str(uuid.uuid4()),
+                "post_id": post_id,
+                "media_url": uploaded["url"],
+                "media_type": uploaded["resource_type"],
+            }
+            supabase.table("media").insert(media).execute()
+            media_records.append(media)
+
+    return {
+        "message": "Post updated successfully",
+        "post": {**post, **update_data},
+        "media_added": media_records,
+        "media_deleted": media_ids_to_delete or []
+    }
+
+@router.delete("/media/{media_id}")
+def delete_media(media_id: str, request: Request):
+    # check login
+    user = request.session.get("user")
+    if not user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    userId = user["id"]
+
+    # find media record
+    media_record = supabase.table("media").select("*").eq("id", media_id).execute()
+    if not media_record.data:
+        raise HTTPException(status_code=404, detail="Media not found")
+
+    media = media_record.data[0]
+
+    # find post to check owner
+    post_record = supabase.table("post").select("user_id").eq("id", media["post_id"]).execute()
+    if not post_record.data:
+        raise HTTPException(status_code=404, detail="Post not found")
+
+    post = post_record.data[0]
+    if post["user_id"] != userId:
+        raise HTTPException(status_code=403, detail="You are not allowed to delete this media")
+
+    # delete media in DB
+    supabase.table("media").delete().eq("id", media_id).execute()
+
+    # optional: delete in Cloudinary too
+    try:
+        delete_cloudinary_asset(media["media_url"])
+    except Exception:
+        pass  # ignore if cloudinary delete fails
+
+    return {"message": "Media deleted successfully", "media_id": media_id}
 
 
 @router.delete('/delete-post/{post_id}', response_model=PostMessageResponse)
