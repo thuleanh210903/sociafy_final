@@ -26,4 +26,5 @@ class CommentResponse(CommentBase):
 
     class Config:
         orm_mode = True
+
         
