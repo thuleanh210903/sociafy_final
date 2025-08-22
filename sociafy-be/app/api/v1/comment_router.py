@@ -34,3 +34,29 @@ def add_comment(request: Request, comment: CommentCreate):
     }).execute()
 
     return {"Message": "Comment added", "data": res.data}
+
+@router.put('/edit/{comment_id}')
+def edit_comment(comment_id: str, comment: CommentCreate, request: Request):
+    user = request.session.get("user")
+    if not user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    # check authorize
+    existing = (
+        supabase.table("comment")
+        .select("id", "user_id")
+        .eq("id", comment_id)
+        .execute()
+    )
+    if not existing.data:
+        raise HTTPException(status_code=404, detail="Comment not found")
+
+    if existing.data[0]["user_id"] != user["id"]:
+        raise HTTPException(status_code=403, detail="Not allowed to edit")
+    
+    # insert comment
+    res = (supabase.table('comment').update({
+        "content": comment.content,
+    }).eq("id", comment_id).execute())
+
+    return {"message": "Comment updated", "data": res.data}
