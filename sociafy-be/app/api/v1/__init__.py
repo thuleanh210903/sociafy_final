@@ -8,6 +8,7 @@ from .upload_router import router as upload_router
 from .user_router import router as user_router
 from .friend_router import router as friend_router
 from .reaction_router import router as reaction_router
+from .comment_router import router as comment_router
 
 routers = [
     (role_router, '/role', "Role"),
@@ -16,5 +17,6 @@ routers = [
     (upload_router, '/upload', "Image"),
     (user_router, '/user', "User"),
     (friend_router, '/friend', "Friend"),
-    (reaction_router, '/react', "Reaction")
+    (reaction_router, '/react', "Reaction"),
+    (comment_router, '/comment', "Comment")
 ]
