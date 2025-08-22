@@ -86,16 +86,20 @@ def delete_comment(comment_id: str, request: Request):
     return {"message": "Comment deleted"}
 
 
+def build_comment_tree(comments, parent_id = None):
+    tree = []
+    for comment in comments:
+        if comment['parent_comment_id'] == parent_id:
+            comment["replies"] = build_comment_tree(comments, comment["id"])
+            tree.append(comment)
+    return tree
+
 @router.get('/list')
 def  get_all_comments(post_id: str = Query(...)):
     # get comment by post id
     res = supabase.table('comment').select("*").eq("post_id", post_id).order("created_at", desc=False).execute()
 
     # divide 2 part: root comment and parent comment 
-    comments = []
-    for row in res.data:
-        if not row["parent_comment_id"]:
-            row["replies"] = [r for r in res.data if r["parent_comment_id"] == row["id"]]
-            comments.append(row)
+    comment_tree = build_comment_tree(res.data)
     
-    return {"comments": comments}
+    return {"comments": comment_tree}
