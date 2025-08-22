@@ -26,3 +26,15 @@ def share_post(request: Request, data: SharePostRequest = Body(...)):
     }).execute()
 
     return {"message": "Post shared successfully", "share": res.data}
+
+@router.get('/count')
+def get_share_count(post_id: str = Query(...)):
+    # check post
+    post = supabase.table("post").select("id").eq("id", post_id).execute()
+    if not post.data:
+        raise HTTPException(status_code=404, detail="Post not found")
+    
+    # count share
+    res = supabase.table('share').select("post_id", count="exact").eq("post_id", post_id).execute()
+
+    return {"post_id": post_id, "share_count": res.count}
