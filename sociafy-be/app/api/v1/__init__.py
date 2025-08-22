@@ -9,6 +9,7 @@ from .user_router import router as user_router
 from .friend_router import router as friend_router
 from .reaction_router import router as reaction_router
 from .comment_router import router as comment_router
+from .share_router import router as share_router
 
 routers = [
     (role_router, '/role', "Role"),
@@ -18,5 +19,6 @@ routers = [
     (user_router, '/user', "User"),
     (friend_router, '/friend', "Friend"),
     (reaction_router, '/react', "Reaction"),
-    (comment_router, '/comment', "Comment")
+    (comment_router, '/comment', "Comment"),
+    (share_router, '/share', "Share")
 ]
