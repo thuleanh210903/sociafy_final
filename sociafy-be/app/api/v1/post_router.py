@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import List, Optional
 import uuid
-from fastapi import APIRouter, File, Form, Request, HTTPException, UploadFile
+from fastapi import APIRouter, File, Form, Query, Request, HTTPException, UploadFile
 from app.db.supabase_client import supabase
 from app.schemas.post import PostMessageResponse
 from app.services.cloudinary_service import upload_cloudinary_image, delete_cloudinary_asset
@@ -22,6 +22,48 @@ def getPostOfMe(request: Request):
         return {"message": "No posts found", "posts": []}
     
     return {"message": "Get posts successful", "posts": posts.data}
+
+@router.get("/feed")
+def get_feed(
+    request: Request,
+    limit: int = Query(10, ge=1, le=50),   # get max 50 post in 1 time
+    cursor: str | None = None              # use cursor to load more
+):
+    user = request.session.get("user")
+    if not user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    user_id = user["id"]
+
+    # get friend list ( was accept)
+    friends_res = supabase.table("friend").select("*").or_(f"user_id.eq.{user_id},friend_id.eq.{user_id}").eq("status", True).execute()
+
+    friend_ids = set()
+    for f in friends_res.data:
+        if f["user_id"] == user_id:
+            friend_ids.add(f["friend_id"])
+        else:
+            friend_ids.add(f["user_id"])
+
+    all_ids = list(friend_ids) + [user_id]
+
+    query = supabase.table("post").select("*").in_("user_id", all_ids).eq("privacy", "public").order("created_at", desc=True)
+
+    # if has cursor, get more lastest post
+    if cursor:
+        query = query.lt("created_at", cursor)
+
+    posts_res = query.limit(limit).execute()
+
+    posts = posts_res.data
+
+    # cursor new = created_at finally in list
+    next_cursor = posts[-1]["created_at"] if posts else None
+
+    return {
+        "data": posts,
+        "next_cursor": next_cursor,
+        "has_more": bool(posts and len(posts) == limit)
+    }
 
 
 @router.post('/add-post', response_model=PostMessageResponse)
