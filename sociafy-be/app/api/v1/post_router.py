@@ -26,44 +26,62 @@ def getPostOfMe(request: Request):
 @router.get("/feed")
 def get_feed(
     request: Request,
-    limit: int = Query(10, ge=1, le=50),   # get max 50 post in 1 time
-    cursor: str | None = None              # use cursor to load more
+    limit: int = Query(2, ge=1, le=10),
+    cursor: str | None = None  
 ):
     user = request.session.get("user")
     if not user:
         raise HTTPException(status_code=401, detail="Not authenticated")
     user_id = user["id"]
 
-    # get friend list ( was accept)
-    friends_res = supabase.table("friend").select("*").or_(f"user_id.eq.{user_id},friend_id.eq.{user_id}").eq("status", True).execute()
+    friends_res = (
+        supabase.table("friend")
+        .select("*")
+        .or_(f"user_id.eq.{user_id},friend_id.eq.{user_id}")
+        .eq("status", True)
+        .execute()
+    )
 
-    friend_ids = set()
-    for f in friends_res.data:
-        if f["user_id"] == user_id:
-            friend_ids.add(f["friend_id"])
-        else:
-            friend_ids.add(f["user_id"])
-
+    friend_ids = {f["friend_id"] if f["user_id"] == user_id else f["user_id"] for f in friends_res.data}
     all_ids = list(friend_ids) + [user_id]
 
-    query = supabase.table("post").select("*").in_("user_id", all_ids).eq("privacy", "public").order("created_at", desc=True)
+    # base query
+    query = (
+        supabase.table("post")
+        .select("*")
+        .in_("user_id", all_ids)
+        .eq("privacy", "public")
+        .order("created_at", desc=True)
+        .order("id", desc=True)
+    )
 
-    # if has cursor, get more lastest post
     if cursor:
-        query = query.lt("created_at", cursor)
+        cursor = cursor.strip()
+        last_post_res = (
+            supabase.table("post")
+            .select("created_at")
+            .eq("id", cursor)
+            .execute()
+        )
+        if not last_post_res.data:
+            raise HTTPException(status_code=400, detail="Invalid cursor id")
+        cursor_dt = last_post_res.data[0]["created_at"]
+
+        query = query.or_(
+        f"created_at.lt.{cursor_dt},and(created_at.eq.{cursor_dt},id.lt.{cursor})"
+    )
 
     posts_res = query.limit(limit).execute()
+    posts = posts_res.data or []
 
-    posts = posts_res.data
-
-    # cursor new = created_at finally in list
-    next_cursor = posts[-1]["created_at"] if posts else None
+    next_cursor = posts[-1]["id"] if posts else None
 
     return {
         "data": posts,
         "next_cursor": next_cursor,
-        "has_more": bool(posts and len(posts) == limit)
+        "has_more": len(posts) == limit
     }
+
 
 
 @router.post('/add-post', response_model=PostMessageResponse)

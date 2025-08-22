@@ -1,5 +1,5 @@
 # app/api/v1/auth_router.py
-from fastapi import APIRouter, HTTPException, Request, Response, Depends
+from fastapi import APIRouter, HTTPException, Query, Request, Response, Depends
 from app.db.supabase_client import supabase
 from app.core.security import hash_password, verify_password
 from app.core.email_utils import send_otp
@@ -155,20 +155,52 @@ def logout(request: Request):
     request.session.clear()
     return {"message": "Logout successful"}
 
-# info
 @router.get("/me")
-def get_current_user(request: Request):
+def get_current_user(
+    request: Request,
+    limit: int = Query(10, ge=1, le=50),
+    cursor: str | None = None
+):
     user = request.session.get("user")
     if not user:
         raise HTTPException(status_code=401, detail="Not authenticated")
-    
-    userId = user["id"]
 
-    # get all posts of current user ( even private)
-    posts = supabase.table("post").select("*").eq("user_id", userId).execute()
-    posts_with_media = []
-    for post in posts.data:
+    user_id = user["id"]
+
+    query = (
+        supabase.table("post")
+        .select("*")
+        .eq("user_id", user_id)
+        .order("created_at", desc=True)
+        .order("id", desc=True)
+    )
+
+    if cursor:
+        cursor = cursor.strip()
+        last_post_res = (
+            supabase.table("post")
+            .select("created_at")
+            .eq("id", cursor)
+            .execute()
+        )
+        if not last_post_res.data:
+            raise HTTPException(status_code=400, detail="Invalid cursor id")
+        cursor_dt = last_post_res.data[0]["created_at"]
+
+        query = query.or_(
+            f"created_at.lt.{cursor_dt},and(created_at.eq.{cursor_dt},id.lt.{cursor})"
+        )
+
+    posts_res = query.limit(limit).execute()
+    posts = posts_res.data or []
+
+    for post in posts:
         medias = supabase.table("media").select("*").eq("post_id", post["id"]).execute()
         post["media"] = medias.data
-        posts_with_media.append(post)
-    return {"user": user, "posts": posts_with_media}
+
+    return {
+        "user": user,
+        "posts": posts,
+        "next_cursor": posts[-1]["id"] if posts else None,
+        "has_more": len(posts) == limit
+    }
