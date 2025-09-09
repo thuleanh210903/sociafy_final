@@ -2,6 +2,8 @@ from datetime import datetime
 from fastapi import APIRouter, HTTPException, Query, Request
 from app.schemas.comment import CommentCreate
 from app.db.supabase_client import supabase
+from app.services.notify_realtime import create_notification
+from app.share.enum.notification import NotificationType
 
 router = APIRouter()
 
@@ -13,15 +15,17 @@ def add_comment(request: Request, comment: CommentCreate):
     user_id = user["id"]
 
     # check post exist
-    post = supabase.table('post').select("id").eq("id", comment.post_id).execute()
+    post = supabase.table('post').select("id", "user_id").eq("id", comment.post_id).execute()
     if not post.data:
         raise HTTPException(status_code=404, detail="Post not found")
+    post_owner_id = post.data[0]["user_id"]
 
     # if has parrent, check parrent
     if comment.parent_comment_id:
-        parent = supabase.table('comment').select('id').eq('id', comment.parent_comment_id).execute()
+        parent = supabase.table('comment').select('id, user_id').eq('id', comment.parent_comment_id).execute()
         if not parent.data:
             raise HTTPException(status_code=404, detail="Parent comment not found")
+        parent_owner_id = parent.data[0]["user_id"]
 
     # insert comment table
     res = supabase.table('comment').insert({
@@ -32,6 +36,24 @@ def add_comment(request: Request, comment: CommentCreate):
         "is_hided": comment.is_hided,
         "created_at": datetime.utcnow().isoformat()
     }).execute()
+
+    if post_owner_id != user_id:
+        create_notification(
+            target_user_id=post_owner_id,
+            type=NotificationType.COMMENT,
+            message=f"{user['firstName']} {user['lastName']} commented on your post",
+            post_id=comment.post_id
+        )
+
+    if comment.parent_comment_id and parent_owner_id != user_id:
+        create_notification(
+            target_user_id=parent_owner_id,
+            type=NotificationType.REPLY,
+            message=f"{user['firstName']} {user['lastName']} replied to your comment",
+            post_id=comment.post_id,
+            comment_id=comment.parent_comment_id
+        )
+
 
     return {"Message": "Comment added", "data": res.data}
 
