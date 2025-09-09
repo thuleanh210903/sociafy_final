@@ -1,6 +1,8 @@
 from datetime import datetime
 from fastapi import APIRouter, HTTPException, Request
 from app.db.supabase_client import supabase
+from app.services.notify_realtime import create_notification
+from app.share.enum.notification import NotificationType
 
 
 router = APIRouter()
@@ -31,6 +33,13 @@ def add_friend(friend_id: str, request: Request):
     }
     supabase.table("friend").insert(new_friend_request).execute()
 
+     # notification to friend_id
+    create_notification(
+        target_user_id=friend_id,
+        type=NotificationType.FRIEND_REQUEST,
+        message=f"{user['firstName']} {user['lastName']} sent you a friend request"
+    )
+
     return {"message": "Friend request sent successfully", "friendship": new_friend_request}
 
 
@@ -54,6 +63,13 @@ def accept_friend(user_id: str, request: Request):
     supabase.table('friend').update({
         "status": True
     }).eq("user_id", user_id).eq("friend_id", friend_id).execute()
+
+    # notification to requester
+    create_notification(
+        target_user_id=user_id,
+        type=NotificationType.FRIEND_REQUEST,
+        message=f"{user['firstName']} {user['lastName']} accepted your friend request"
+    )
 
     return {"message": "Friend request accepted successfully"}
 

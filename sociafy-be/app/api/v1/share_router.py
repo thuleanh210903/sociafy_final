@@ -2,6 +2,8 @@ from datetime import datetime
 from fastapi import APIRouter, Body, HTTPException, Query, Request
 from app.schemas.share import SharePostRequest
 from app.db.supabase_client import supabase
+from app.services.notify_realtime import create_notification
+from app.share.enum.notification import NotificationType
 
 router = APIRouter()
 
@@ -14,9 +16,10 @@ def share_post(request: Request, data: SharePostRequest = Body(...)):
     user_id = user["id"]
 
     # check post
-    post = supabase.table('post').select("id").eq("id", data.post_id).execute()
+    post = supabase.table('post').select("id", "user_id").eq("id", data.post_id).execute()
     if not post.data:
         raise HTTPException(status_code=404, detail="Post not found")
+    post_owner_id = post.data[0]["user_id"]
     
     # insert
     res = supabase.table('share').insert({
@@ -24,6 +27,14 @@ def share_post(request: Request, data: SharePostRequest = Body(...)):
         "post_id": data.post_id,
         "created_at": datetime.utcnow().isoformat()
     }).execute()
+
+    if post_owner_id != user_id:
+        create_notification(
+            target_user_id=post_owner_id,
+            type=NotificationType.SHARE,
+            message=f"{user['firstName']} {user['lastName']} shared your post",
+            post_id=data.post_id
+        )
 
     return {"message": "Post shared successfully", "share": res.data}
 
