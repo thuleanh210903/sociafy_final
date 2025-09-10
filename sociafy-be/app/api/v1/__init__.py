@@ -11,6 +11,8 @@ from .reaction_router import router as reaction_router
 from .comment_router import router as comment_router
 from .share_router import router as share_router
 from .notify_router import router as notify_router
+from .report_router import router as report_router
+from .violation_router import router as violation_router
 
 routers = [
     (role_router, '/role', "Role"),
@@ -22,5 +24,7 @@ routers = [
     (reaction_router, '/react', "Reaction"),
     (comment_router, '/comment', "Comment"),
     (share_router, '/share', "Share"),
-    (notify_router, '/notify', "Notify")
+    (notify_router, '/notify', "Notify"),
+    (report_router, '/report', "Report"),
+    (violation_router, 'violation', "Violation")
 ]
