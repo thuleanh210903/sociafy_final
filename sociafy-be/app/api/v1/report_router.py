@@ -92,15 +92,15 @@ def confirmReport(report_id: str, payload: ReportUpdateStatus):
 
     
 def check_strike(user_id: str, post_id: str | None, comment_id: str | None):
-    # if post/ comment >= 6 violation => hidden post
+    # if post/ comment >= 5 violation => hidden post
     if post_id:
         res = supabase.table("violation").select("*").eq("post_id", post_id).execute()
-        if len(res.data) >= 6:
+        if len(res.data) >= 5:
             supabase.table("post").update({"is_hided": True}).eq("id", post_id).execute()
     
     if comment_id:
         res = supabase.table("violation").select("*").eq("comment_id", comment_id).execute()
-        if len(res.data) >= 6:
+        if len(res.data) >= 5:
             supabase.table("comment").update({"is_hided": True}).eq("id", comment_id).execute()
 
 
