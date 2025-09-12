@@ -1,23 +1,26 @@
 import os
 from dotenv import load_dotenv
 from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware 
-from app.api.v1 import routers
+from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.sessions import SessionMiddleware
+from apscheduler.schedulers.background import BackgroundScheduler
+from app.api.v1 import routers
+from app.services.ai_flag_service import process_ai_flag
 
 load_dotenv()
 
 app = FastAPI(title="Sociafy API")
 
+# --- Middleware ---
 secret_key = os.getenv("SECRET_KEY")
 if not secret_key:
     raise ValueError("SECRET_KEY not set in .env")
 
 app.add_middleware(
     SessionMiddleware,
-    secret_key= secret_key,
-    session_cookie="session",          
-    max_age=3600                      
+    secret_key=secret_key,
+    session_cookie="session",
+    max_age=3600
 )
 
 app.add_middleware(
@@ -25,12 +28,43 @@ app.add_middleware(
     allow_origins=["http://localhost:3000"],
     allow_credentials=True,
     allow_methods=["*"],
-    allow_headers=["*"],
+    allow_headers=["*"]
 )
 
+# --- Scheduler singleton ---
+scheduler = BackgroundScheduler()
+
+def start_scheduler():
+    if not scheduler.running:
+        scheduler.add_job(
+            process_ai_flag,        
+            trigger="interval",
+            days=1,
+            id="ai_flag_job",     
+            replace_existing=True
+        )
+        scheduler.start()
+        print("Scheduler started")
+
+def shutdown_scheduler():
+    if scheduler.running:
+        scheduler.shutdown()
+        print("Scheduler stopped")
+
+# --- Startup / Shutdown Events ---
+@app.on_event("startup")
+def on_startup():
+    start_scheduler()
+
+@app.on_event("shutdown")
+def on_shutdown():
+    shutdown_scheduler()
+
+# --- Include routers ---
 for router, prefix, tag in routers:
     app.include_router(router, prefix=f"/api/v1{prefix}", tags=[tag])
 
-@app.get('/api/v1')
+# --- Root endpoint ---
+@app.get("/api/v1")
 def root():
-    return {"message":"Hello"}
+    return {"message": "Hello"}

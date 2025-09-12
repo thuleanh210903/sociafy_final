@@ -13,6 +13,8 @@ from .share_router import router as share_router
 from .notify_router import router as notify_router
 from .report_router import router as report_router
 from .violation_router import router as violation_router
+from .ai_flag_router import router as ai_flag_router
+from .ai_flag_disputes import router as ai_flag_disputes
 
 routers = [
     (role_router, '/role', "Role"),
@@ -26,5 +28,7 @@ routers = [
     (share_router, '/share', "Share"),
     (notify_router, '/notify', "Notify"),
     (report_router, '/report', "Report"),
-    (violation_router, 'violation', "Violation")
+    (violation_router, 'violation', "Violation"),
+    (ai_flag_router, 'ai-flag', "AI_Flag"),
+    (ai_flag_disputes, 'disputes', "AI_Flag_Disputes")
 ]
