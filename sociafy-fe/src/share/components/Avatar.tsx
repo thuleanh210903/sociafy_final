@@ -32,12 +32,17 @@ export const Avatar: React.FC<AvatarProps> = ({
   };
 
   return (
-    <div className={`inline-block relative ${sizeClass[size]} ${className}`}>
+    <div
+      className={`inline-block relative overflow-hidden group ${sizeClass[size]} ${className}`}
+    >
       <img
         src={src}
         alt={alt}
         className="w-full h-full rounded-full object-cover border"
       />
+
+      {/* overlay hover */}
+      <div className="absolute inset-0 rounded-full bg-black/20 opacity-0 group-hover:opacity-100 transition"></div>
 
       {/* Online indicator */}
       {isOnline && (
