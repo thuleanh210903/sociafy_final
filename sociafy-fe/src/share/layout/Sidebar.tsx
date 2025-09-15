@@ -9,7 +9,7 @@ interface SidebarItemProps {
 
 const SidebarItem = ({ Icon, label, avatar }: SidebarItemProps) => {
   return (
-    <li className="flex items-center gap-3 px-4 py-2 hover:bg-gray-100 hover:text-black rounded-lg cursor-pointer">
+    <li className="flex items-center gap-3 px-4 py-2 hover:bg-gray-600 rounded-lg cursor-pointer">
       {avatar ? (
         <Avatar src={avatar} size="md" />
       ) : Icon ? (
